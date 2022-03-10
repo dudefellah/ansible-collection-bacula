@@ -1,0 +1,9 @@
+---
+# vars file for bacula_file_daemon
+__bacula_file_daemon_packages:
+  CentOS:
+    default:
+      - bacula-fd
+  Debian:
+    default:
+      - bacula-fd

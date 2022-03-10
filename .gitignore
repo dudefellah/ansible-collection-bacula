@@ -1,0 +1,5 @@
+tests/output
+.tox
+tags
+*.sw[po]
+__pycache__

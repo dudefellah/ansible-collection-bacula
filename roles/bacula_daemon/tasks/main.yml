@@ -1,0 +1,187 @@
+---
+# tasks file for ansible-role-bacula
+- name: Set some role-based facts
+  include_tasks: __bd_gather_facts.yml
+  tags:
+    - bacula
+    - bacula_daemon_facts
+    - facts
+    - role_facts
+
+- name: Install the packages
+  ansible.builtin.package:
+    name: "{{ _bacula_daemon_packages }}"
+    state: present
+  register: __bd_package_install
+  tags:
+    - bacula
+    - packages
+    - bacula_daemon_packages
+
+- block:
+    - name: Create a tempfile for testing the config
+      ansible.builtin.tempfile:
+        state: file
+      register: __bd_tempfile
+      changed_when: false
+
+# This commented-out job was used for testing. I've left it in version control
+# because it can be handly. Uncomment it and you can manually inspect the config
+# file being used for validation.
+
+    - name: Testing - uncomment this to see what the big, aggregate Bacula config looks like
+      ansible.builtin.template:
+        dest: "/tmp/ansible-bacula-dir-test.conf"
+        src: bacula-resources-all.conf.j2
+      register: __bd_template_test
+      changed_when: false
+      vars:
+        _bacula_daemon_resources: >-
+          {{ (bacula_daemon_resources | selectattr('template_validate', 'undefined') | rejectattr('include', 'false'))
+             + (bacula_daemon_resources | selectattr('template_validate', 'defined') | rejectattr('template_validate', 'none') | rejectattr('include', 'false')) }}
+
+    - name: Place all resources into the tempfile and validate it
+      ansible.builtin.template:
+        dest: "{{ __bd_tempfile.path }}"
+        src: bacula-resources-all.conf.j2
+        validate: "{{ bacula_daemon_template_validate | default(omit) }}"
+      register: __bd_template_test
+      changed_when: false
+      tags:
+        - bacula
+        - config
+        - bacula_daemon_config
+        - template
+        - bacula_daemon_template
+      vars:
+        _bacula_daemon_resources: >-
+          {{ (bacula_daemon_resources | selectattr('template_validate', 'undefined') | rejectattr('include', 'false'))
+             + (bacula_daemon_resources | selectattr('template_validate', 'defined') | rejectattr('template_validate', 'none') | rejectattr('include', 'false')) }}
+  always:
+    - name: Cleanup the tempfile
+      ansible.builtin.file:
+        path: "{{ __bd_tempfile.path }}"
+        state: absent
+      changed_when: false
+  tags:
+    - bacula
+
+- fail:
+    msg: "There was an error in your resource definition(s)"
+  tags:
+    - bacula
+    - config
+    - bacula_daemon_config
+    - template
+    - bacula_daemon_template
+  when:
+    - "__bd_template_test.failed"
+
+- name: Prepare resource config paths
+  ansible.builtin.file:
+    path: >-
+      {%- if 'path' in __bd_resource -%}
+      {{ __bd_resource.path.startswith('/') | ternary(
+        __bd_resource.path,
+        _bacula_daemon_config_root_path + '/' + __bd_resource.path
+      ) | lower | dirname }}
+      {%- else -%}
+      {{ bacula_daemon_config_root.path.rstrip('/') + '/' + (__bd_resource.resource_type | lower | replace(' ', '_')) }}
+      {%- endif -%}
+    state: directory
+    owner: "{{ _bd_resource.owner | default(bacula_daemon_owner) }}"
+    group: "{{ __bd_resource.group | default(bacula_daemon_group) }}"
+    mode: "{{ __bd_resource.dir_mode | default(bacula_daemon_default_dir_mode) }}"
+  tags:
+    - bacula
+    - config
+    - bacula_daemon_config
+    - init
+    - bacula_daemon_init
+  register: __bd_resource_paths
+  loop: "{{ bacula_daemon_resources }}"
+  loop_control:
+    loop_var: __bd_resource
+    index_var: __index_var
+
+- name: Install the resource configs
+  ansible.builtin.template:
+    src: >-
+      {{ ('bacula-' + (__bd_resource.resource_type | lower) + '.conf.j2' in _bacula_daemon_local_templates) |
+        ternary(
+          'bacula-' + (__bd_resource.resource_type | lower) + '.conf.j2',
+          'bacula-resource.conf.j2'
+        ) }}
+    # Install to:
+    # Absolute path if the resource entry has a path that starts with '/'
+    # A relative path (to the bacula_daemon_config_root var) if the path entry
+    # doesn't start with '/'
+    # A generated path based on name or loop index if no path is set
+    # This logic needs to be duplicated in the bacula-dir.conf.j2 to enable proper
+    # file include locations.
+    dest: >-
+      {%- if 'path' in __bd_resource -%}
+      {{ __bd_resource.path.startswith('/') | ternary(
+        __bd_resource.path | lower,
+        (_bacula_daemon_config_root_path + '/' + __bd_resource.path) | lower
+      ) }}
+      {%- else -%}
+      {{ (bacula_daemon_config_root.path.rstrip('/') + '/' + (__bd_resource.resource_type | replace(' ', '_')) + '/' + (__bd_resource.resource_definition.name | default(__index_var | string)) + '.conf') | lower }}
+      {%- endif -%}
+    owner: "{{ __bd_resource.file_owner | default(bacula_daemon_owner) }}"
+    group: "{{ __bd_resource.file_group | default(bacula_daemon_group) }}"
+    mode: "{{ __bd_resource.file_mode | default(bacula_daemon_default_file_mode) }}"
+    validate: "{{ __bd_resource.template_validate | default(omit) }}"
+  notify:
+    - restart bacula daemon
+  vars:
+    bacula_daemon_resource_type: "{{ __bd_resource.resource_type }}"
+    bacula_daemon_resource_definition: "{{ __bd_resource.resource_definition }}"
+  no_log: "{{ __bd_resource.no_log | default(bacula_daemon_no_log) }}"
+  tags:
+    - bacula
+    - config
+    - bacula_daemon_config
+    - resource_config
+    - bacula_daemon_resource_config
+    - template
+    - bacula_daemon_template
+  loop: "{{ bacula_daemon_resources }}"
+  loop_control:
+    loop_var: __bd_resource
+    index_var: __index_var
+
+- name: Install the root bacula config
+  ansible.builtin.template:
+    src: bacula-root.conf.j2
+    dest: |-
+      {{ bacula_daemon_base_config_file.startswith('/') | ternary(
+          bacula_daemon_base_config_file,
+          bacula_daemon_config_root.path.rstrip('/') + '/' + bacula_daemon_base_config_file
+        ) | lower }}
+    owner: "{{ bacula_daemon_base_config_file.owner | default(bacula_daemon_owner) }}"
+    group: "{{ bacula_daemon_base_config_file.group | default(bacula_daemon_group) }}"
+    mode: "{{ bacula_daemon_base_config_file.mode | default(bacula_daemon_default_file_mode) }}"
+    backup: "{{ bacula_daemon_base_config_file.backup | default(false) }}"
+    validate: "{{ bacula_daemon_template_validate | default(omit) }}"
+  notify:
+    - restart bacula daemon
+  no_log: "{{ bacula_daemon_base_config_file.no_log | default(bacula_daemon_no_log) }}"
+  tags:
+    - bacula
+    - config
+    - bacula_daemon_config
+    - root_config
+    - bacula_daemon_root_config
+
+- name: Set the service state
+  ansible.builtin.service:
+    name: "{{ bacula_daemon_service_name }}"
+    state: "{{ bacula_daemon_service_state }}"
+    enabled: "{{ bacula_daemon_service_enabled }}"
+  tags:
+    - bacula
+    - config
+    - bacula_daemon_config
+    - root_config
+    - bacula_daemon_root_config

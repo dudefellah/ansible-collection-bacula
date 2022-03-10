@@ -1,0 +1,9 @@
+---
+# vars file for bacula_director
+__bacula_director_packages:
+  CentOS:
+    default:
+      - bacula-director
+  Debian:
+    default:
+      - bacula-director

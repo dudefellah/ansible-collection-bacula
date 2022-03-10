@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+
+{% macro bacula_resource(resource_type, resource_definition) %}
+{% if kwargs.get('resource_nested_level', 1) > 4 %}
+# Recused too many levels: {{ kwargs.get('resource_nested_level', 1) }}
+{% else %}
+{% set _resource_nested_level = kwargs.get('resource_nested_level', 1) %}
+{% set _resource_indent_base = (kwargs['resource_indent_str'] | default('    ')) %}
+{% set _resource_start_indent_str = (_resource_indent_base * (_resource_nested_level-1)) %}
+{% set _resource_indent_str = (_resource_indent_base * _resource_nested_level) %}
+{{ _resource_start_indent_str }}{{ resource_type | split('_') | map('title') | join('') }} {
+{% for (k, v) in resource_definition.items() %}
+{% set _bacula_key = (k | split('_') | join(' ') | title) %}
+{% if (v is string) or (v is number) %}
+{{ _resource_indent_str }}{{ _bacula_key }} = {{ v | dudefellah.bacula.bacula_quote(k) }}
+{% elif (v is iterable) and (v is not mapping) %}
+{% for iter_v in v %}
+{% if iter_v is not mapping %}
+{{ _resource_indent_str }}{{ _bacula_key }} = {{ iter_v | dudefellah.bacula.bacula_quote(k) }}
+{% else %}
+{{ _resource_indent_str }}{{ bacula_resource(k, iter_v, resource_nested_label=(_resource_nested_level + 1)) }}
+{% endif %}
+{% endfor %}
+{% elif v is mapping %}
+{{ _resource_indent_str }}{{ bacula_resource(k, v, resource_nested_level=(_resource_nested_level + 1)) }}
+{% endif %}
+{% endfor %}
+{{ _resource_start_indent_str }}}
+{% endif %}
+{% endmacro -%}
+
+{{ bacula_resource(bacula_daemon_resource_type, bacula_daemon_resource_definition) }}

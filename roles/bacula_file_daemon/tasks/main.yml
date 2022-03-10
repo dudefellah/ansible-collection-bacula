@@ -1,0 +1,14 @@
+---
+# tasks file for bacula_file_daemon
+- name: Gather some facts for the file daemon role
+  include_tasks: __bfd_gather_facts.yml
+  tags:
+    - bacula
+    - bacula_file_daemon
+
+- name: Do nothing but include the dudefellah.bacula.bacula_daemon role
+  ansible.builtin.include_role:
+    name: dudefellah.bacula.bacula_daemon
+  tags:
+    - bacula
+    - bacula_file_daemon

@@ -1,0 +1,55 @@
+---
+# tasks file for bacula_director
+- name: Gather some facts for the file daemon role
+  include_tasks: __bd_gather_role_facts.yml
+  tags:
+    - bacula
+
+- name: Install dependency packages
+  ansible.builtin.package:
+    name: "{{ _bacula_director_packages }}"
+    state: present
+  tags:
+    - bacula
+
+- block:
+    - name: Test to see if the catalog is reachable
+      community.postgresql.postgresql_query:
+        db: "{{ bacula_director_catalog_database_name }}"
+        login_user: "{{ bacula_director_catalog_database_user }}"
+        login_password: "{{ bacula_director_catalog_database_password }}"
+        login_host: "{{ bacula_director_catalog_database_host }}"
+        query: 'SELECT versionid FROM version'
+      no_log: "{{ bacula_director_no_log }}"
+      when:
+        - "bacula_director_catalog_database_type == 'pgsql'"
+  rescue:
+    # A failed attempt at reading a talbe from the bacula database is an
+    # indication that we should install it!
+    - name: Run init script
+      ansible.builtin.command: "{{ __bd_cmd.command }}"
+      environment: >-
+        {{ __bd_cmd.environment
+           | default(
+               {
+                  'name': bacula_director_catalog_name,
+                  'db_name': bacula_director_catalog_database_name,
+                  'db_user': bacula_director_catalog_database_user,
+                  'db_password': bacula_director_catalog_database_password,
+                  'db_address': bacula_director_catalog_database_host,
+                  'db_port': bacula_director_catalog_database_port
+               }
+           ) }}
+      loop: "{{ bacula_director_init_scripts | default([]) }}"
+      loop_control:
+        loop_var: __bd_cmd
+      become: "{{ (('user' in __bd_cmd) and (__bd_cmd.user is not none)) | bool }}"
+      become_user: "{{ __bd_cmd.user | default(omit) }}"
+  tags:
+    - bacula
+
+- name: Include the dudefellah.bacula.bacula_daemon role
+  ansible.builtin.include_role:
+    name: dudefellah.bacula.bacula_daemon
+  tags:
+    - bacula

@@ -1,0 +1,246 @@
+---
+# defaults file for bacula_director
+# All of these values are direct maps from
+# bacula_director_* -> bacula_daemon_* in the `dudefellah.bacula.bacula_daemon` role.
+bacula_director_packages: null
+
+bacula_director_owner: bacula
+bacula_director_group: bacula
+
+bacula_director_template_validate: "bacula-dir -t %s"
+
+bacula_director_default_dir_mode: "0750"
+bacula_director_default_file_mode: "0640"
+
+bacula_director_no_log: true
+
+bacula_director_service_name: bacula-dir
+bacula_director_service_state: started
+bacula_director_service_enabled: true
+bacula_director_service_restarted: null
+
+# These values get entered into Bacula as a catalog resource, so you should
+# ensure that you don't have another Catalog (or at least another Catalog with
+# the same name) in your Bacula Director's resource files (ie. in the
+# `bacula_director_resources` list).
+#
+# These values are separated out to make it easier to check to see if we need
+# to do anything to initialize or upgrade the database. When the role is run,
+# the values below will be assembled into an entry int the
+# `bacula_director_resources` list automatiically so that these values get
+# provisioned automatically.
+bacula_director_catalog_name: MyCatalog
+bacula_director_catalog_database_type: pgsql
+bacula_director_catalog_database_name: "XXX_DBNAME_XXX"
+bacula_director_catalog_database_user: "XXX_DBUSER_XXX"
+bacula_director_catalog_database_password: "XXX_DBPASSWORD_XXX"
+bacula_director_catalog_database_host: '127.0.0.1'
+bacula_director_catalog_database_port: 5432
+
+# The Bacula-provided packages can leave it up to you to prepare your
+# environment (ie. the database). You can add the appropriate scripts here so
+# that they get run when the director is installed.
+# Eg.
+#   - command: /opt/bacula/scripts/create_bacula_daemon_database
+#     environment:
+#       db_user: bob
+#       db_password: bob123
+#       db_name: bacula
+#     user: postgres
+#   - command: /opt/bacula/scripts/make_bacula_daemon_tables
+#     environment:
+#       db_user: bob
+#       db_password: bob123
+#       db_name: bacula
+#     user: postgres
+#   - command: /opt/bacula/scripts/grant_bacula_daemon_privileges
+#     environment:
+#       db_user: bob
+#       db_password: bob123
+#       db_name: bacula
+#     user: postgres
+bacula_director_init_scripts: []
+
+bacula_director_base_config_file: bacula-dir.conf
+bacula_director_base_config_mode: "0640"
+bacula_director_base_config_owner: bacula
+bacula_director_base_config_group: bacula
+
+bacula_director_config_root:
+  path: /etc/bacula/
+  owner: bacula
+  group: bacula
+  mode: "0640"
+
+bacula_director_resources:
+  - resource_type: Director
+    resource_definition:
+      name: director-dir
+      dir_port: 9101
+      query_file: "/etc/bacula/scripts/query.sql"
+      working_directory: "/var/lib/bacula"
+      pid_directory: "/run/bacula"
+      maximum Concurrent Jobs: 20
+      password: "Um1DrMegfhq93cJ5pg9NTnFf8LItNVwTX"
+      messages: Daemon
+      dir_address: 127.0.0.1
+  - resource_type: JobDefs
+    resource_definition:
+      name: "DefaultJob"
+      type: Backup
+      level: Incremental
+      client: director-fd
+      file_set: "Full Set"
+      schedule: "WeeklyCycle"
+      storage: File1
+      messages: Standard
+      pool: File
+      spool_attributes: yes
+      priority: 10
+      write_bootstrap: "/var/lib/bacula/%c.bsr"
+  - resource_type: Job
+    resource_definition:
+      name: "BackupClient1"
+      job_defs: "DefaultJob"
+  - resource_type: Job
+    resource_definition:
+      name: "BackupCatalog"
+      job_defs: "DefaultJob"
+      level: Full
+      file_set: "Catalog"
+      schedule: "WeeklyCycleAfterBackup"
+      run_before_job: "/etc/bacula/scripts/make_catalog_backup.pl MyCatalog"
+      run_after_job : "/etc/bacula/scripts/delete_catalog_backup"
+      write_bootstrap: "/var/lib/bacula/%n.bsr"
+      priority: 11
+  - resource_type: Job
+    resource_definition:
+      name: "RestoreFiles"
+      type: Restore
+      client: director-fd
+      storage: File1
+      file_set: "Full Set"
+      pool: File
+      messages: Standard
+      where: /nonexistant/path/to/file/archive/dir/bacula-restores
+  - resource_type: FileSet
+    resource_definition:
+      name: "Full Set"
+      include:
+        options:
+          signature: MD5
+        file: /usr/sbin
+      exclude:
+        file:
+          - /var/lib/bacula
+          - /nonexistant/path/to/file/archive/dir
+          - /proc
+          - /tmp
+          - /sys
+          - /.journal
+          - /.fsck
+  - resource_type: Schedule
+    resource_definition:
+      name: "WeeklyCycle"
+      run:
+        - Full 1st sun at 23:05
+        - Differential 2nd-5th sun at 23:05
+        - Incremental mon-sat at 23:05
+  - resource_type: Schedule
+    resource_definition:
+      name: "WeeklyCycleAfterBackup"
+      run:
+        - Full sun-sat at 23:10
+  - resource_type: FileSet
+    resource_definition:
+      name: "Catalog"
+      include:
+        options:
+          signature: MD5
+        file: "/var/lib/bacula/XXX_DBNAME_XXX.sql"
+  - resource_type: Client
+    resource_definition:
+      name: director-fd
+      address: localhost
+      fd_port: 9102
+      catalog: MyCatalog
+      password: "tUifkwYWrJfXP8Njm07F_OQNhMu5o-2aw"
+      file_retention: 60 days
+      job_retention: 6 months
+      auto_prune: yes
+  - resource_type: Autochanger
+    resource_definition:
+      name: File1
+      address: localhost
+      sd_port: 9103
+      password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+      device: FileChgr1
+      media_type: File1
+      maximum_concurrent_jobs: 10
+      autochanger: File1
+  - resource_type: Autochanger
+    resource_definition:
+      name: File2
+      address: localhost
+      sd_port: 9103
+      password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+      device: FileChgr2
+      media_type: File2
+      autochanger: File2
+      maximum_concurrent_jobs: 10
+  - resource_type: Catalog
+    resource_definition:
+      name: MyCatalog
+      dbname: "XXX_DBNAME_XXX"
+      dbuser: "XXX_DBUSER_XXX"
+      dbpassword: "XXX_DBPASSWORD_XXX"
+  - resource_type: Messages
+    resource_definition:
+      name: Standard
+      mailcommand: >-
+        /usr/sbin/bsmtp -h localhost -f "(Bacula) <%r>" -s "Bacula: %t %e of %c %l" %r
+      operatorcommand: >-
+        /usr/sbin/bsmtp -h localhost -f "(Bacula) <%r>" -s "Bacula: Intervention needed for %j" %r
+      mail: 'root: all, !skipped'
+      operator: 'root: mount'
+      console: all, !skipped, !saved
+      append: >-
+        "/var/log/bacula/bacula.log": all, !skipped
+      catalog: all
+  - resource_type: Messages
+    resource_definition:
+      name: Daemon
+      mailcommand: >-
+        /usr/sbin/bsmtp -h localhost -f "(Bacula) <%r>" -s "Bacula daemon message" %r
+      mail: 'root: all, !skipped'
+      console: all, !skipped, !saved
+      append: >-
+        "/var/log/bacula/bacula.log": all, !skipped
+  - resource_type: Pool
+    resource_definition:
+      name: Default
+      pool_type: Backup
+      recycle: yes
+      auto_prune: yes
+      volume_retention: 365 days
+      maximum_volume_bytes: 50G
+      maximum_volumes: 100
+  - resource_type: Pool
+    resource_definition:
+      name: File
+      pool_type: Backup
+      recycle: yes
+      auto_prune: yes
+      volume_retention: 365 days
+      maximum_volume_bytes: 50G
+      maximum_volumes: 100
+      label_format: "Vol-"
+  - resource_type: Pool
+    resource_definition:
+      name: Scratch
+      pool_type: Backup
+  - resource_type: Console
+    resource_definition:
+      name: director-mon
+      password: "yzzaZ5yqcHejZZAoWgP8MND0gutaNrn3G"
+      command_acl: 'status, .status'

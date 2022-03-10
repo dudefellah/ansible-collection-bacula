@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+
+{% for resource in bacula_director_resources %}
+{% set bacula_daemon_resource_type = (resource.resource_type|lower) %}
+{% set bacula_daemon_resource_definition = resource.resource_definition %}
+{% include ['bacula-' + bacula_daemon_resource_type + '.conf.j2', 'bacula-resource.conf.j2'] %}
+
+{% endfor %}

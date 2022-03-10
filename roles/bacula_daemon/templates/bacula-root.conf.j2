@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+
+{% for __db_resources in _bacula_daemon_config_file_paths | sort %}
+@{{ __db_resources | dudefellah.bacula.bacula_quote('@') }}
+{% endfor %}
+
+{# 
+{% for __bd_resource in bacula_daemon_resources %}
+@{% if 'path' in __bd_resource -%}
+    {{ __bd_resource.path.startswith('/') | ternary(
+        __bd_resource.path | lower | dudefellah.bacula.bacula_quote('@'),
+        ((bacula_daemon_config_root.path.rstrip('/') | lower) + '/' + __bd_resource.path) | dudefellah.bacula.bacula_quote('@')
+       ) }}
+{% else -%}
+    {{ (bacula_daemon_config_root.path.rstrip('/') + '/' + (__bd_resource.resource_type | lower) + '/' + (__bd_resource.resource_definition.name | default(loop.index | string)) + '.conf') | dudefellah.bacula.bacula_quote('@') }}
+{% endif %}
+{% endfor %} #}

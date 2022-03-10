@@ -1,0 +1,18 @@
+---
+# handlers file for bacula_storage_daemon
+- name: Restart the Bacula Director
+  ansible.builtin.service:
+    name: "{{ bacula_storage_daemon_service_name }}"
+    state: "{{ bacula_storage_daemon_service_restarted }}"
+  listen:
+    - "restart bacula daemon"
+  tags:
+    - bacula_daemon_handler
+    - bacula_storage_daemon_handler
+    - handler
+    - bacula_daemon_restart
+    - bacula_storage_daemon_restart
+    - restart
+  when:
+    - "bacula_storage_daemon_service_restarted is not none"
+

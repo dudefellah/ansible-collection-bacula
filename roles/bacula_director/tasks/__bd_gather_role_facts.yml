@@ -1,0 +1,61 @@
+---
+- name: Set the packages value
+  set_fact:
+    _bacula_director_packages: >-
+      {%- if (bacula_director_packages is not none) and (bacula_director_packages) -%}
+      {{ bacula_director_packages }}
+      {%- elif (
+        (ansible_distribution in __bacula_director_packages)
+        and (ansible_distribution_major_version|int in __bacula_director_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_director_packages[ansible_distribution][ansible_distribution_major_version|int] }}
+      {%- elif (
+        (ansible_distribution in __bacula_director_packages)
+        and ('default' in __bacula_director_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_director_packages[ansible_distribution]['default'] }}
+      {%- endif -%}
+  tags:
+    - bacula
+
+# This is a hacky trick so that our values don't go missing when we call
+# the bacula_daemon role with all of the bacula_director_* role vars
+- name: Place director vars into host_vars
+  set_fact:
+    bacula_daemon_service_name: "{{ bacula_director_service_name }}"
+    bacula_daemon_service_state: "{{ bacula_director_service_state }}"
+    bacula_daemon_service_enabled: "{{ bacula_director_service_enabled }}"
+    bacula_daemon_service_restarted: "{{ bacula_director_service_restarted }}"
+    bacula_daemon_packages: "{{ _bacula_director_packages }}"
+    bacula_daemon_owner: "{{ bacula_director_owner }}"
+    bacula_daemon_group: "{{ bacula_director_group }}"
+    bacula_daemon_template_validate: "{{ bacula_director_template_validate }}"
+    bacula_daemon_default_dir_mode: "{{ bacula_director_default_dir_mode }}"
+    bacula_daemon_default_file_mode: "{{ bacula_director_default_file_mode }}"
+    bacula_daemon_service_name: "{{ bacula_director_service_name }}"
+    bacula_daemon_service_state: "{{ bacula_director_service_state }}"
+    bacula_daemon_service_enabled: "{{ bacula_director_service_enabled }}"
+    bacula_daemon_service_restarted: "{{ bacula_director_service_restarted }}"
+    bacula_daemon_no_log: "{{ bacula_director_no_log }}"
+    bacula_daemon_init_scripts: "{{ bacula_director_init_scripts }}"
+    bacula_daemon_base_config_file: "{{ bacula_director_base_config_file }}"
+    bacula_daemon_base_config_mode: "{{ bacula_director_base_config_mode }}"
+    bacula_daemon_base_config_owner: "{{ bacula_director_base_config_owner }}"
+    bacula_daemon_base_config_group: "{{ bacula_director_base_config_group }}"
+    bacula_daemon_config_root: "{{ bacula_director_config_root }}"
+    bacula_daemon_resources: >-
+      {{ [
+           {
+             'resource_type': 'catalog',
+             'resource_definition': {
+               'name': bacula_director_catalog_name,
+               'db_name': bacula_director_catalog_database_name,
+               'user': bacula_director_catalog_database_user,
+               'password': bacula_director_catalog_database_password,
+               'db_address': bacula_director_catalog_database_host,
+               'db_port': bacula_director_catalog_database_port
+              },
+           }
+        ] + bacula_director_resources }}
+  tags:
+    - bacula

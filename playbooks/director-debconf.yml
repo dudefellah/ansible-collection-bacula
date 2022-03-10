@@ -1,0 +1,32 @@
+---
+# This playbook uses the ansible.builtin.debconf module to pre-populate debconf
+# answers so that the postinstall knows what to do when it auto-creates the
+# catalog database.
+- hosts: bacula_directors
+  tasks:
+    - block:
+        - name: Init Debian
+          ansible.builtin.debconf:
+            name: "{{ __bd_debconf.name }}"
+            question: "{{ __bd_debconf.question }}"
+            value: "{{ __bd_debconf.value }}"
+            vtype: "{{ __bd_debconf.vtype }}"
+          no_log: true
+          loop:
+            - name: bacula-director-pgsql
+              question: bacula-director-pgsql/pgsql/app-pass
+              vtype: password
+              value: "{{ bacula_director_catalog_database_password }}"
+            - name: bacula-director-pgsql
+              question: bacula-director-pgsql/app-password-confirm
+              vtype: password
+              value: "{{ bacula_director_catalog_database_password }}"
+          loop_control:
+            loop_var: "__bd_debconf"
+          when:
+            - "ansible_os_family == 'Debian'"
+
+        - name: Run the bacula director role
+          include_role:
+            name: dudefellah.bacula.bacula_director
+

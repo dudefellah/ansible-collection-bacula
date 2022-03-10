@@ -1,0 +1,58 @@
+---
+# defaults file for ansible-role-bacula_daemon
+#
+# The appropriate package is automatically determined based on what's in
+# vars/main.yml. If you want to prevent package install, set this to an empty
+# list ([]), or for an unsupported distro, you may be able to customize this
+# to work for you.
+bacula_daemon_packages: null
+
+bacula_daemon_owner: bacula
+bacula_daemon_group: bacula
+
+bacula_daemon_template_validate: "bacula-fd -t %s"
+
+bacula_daemon_default_dir_mode: "0750"
+bacula_daemon_default_file_mode: "0640"
+
+bacula_daemon_service_name: bacula-fd
+bacula_daemon_service_state: started
+bacula_daemon_service_enabled: true
+bacula_daemon_service_restarted: null
+
+bacula_daemon_no_log: true
+
+bacula_daemon_base_config_file: bacula-fd.conf
+bacula_daemon_base_config_mode: "0640"
+bacula_daemon_base_config_owner: bacula
+bacula_daemon_base_config_group: bacula
+
+bacula_daemon_config_root:
+  path: /etc/bacula/
+  owner: bacula
+  group: bacula
+  mode: "0640"
+
+bacula_daemon_resources:
+  - resource_type: director
+    resource_definition:
+      name: 'bacula-dir'
+      password: "8Ih_d5CBAGUHtItCEsF97vcPo2bqmIAcm"
+  - resource_type: director
+    resource_definition:
+      name: 'bacula-mon'
+      password: "kkcOdjQqmuHd3AcIWMxSzYKpjXFQioXWp"
+      monitor: true
+  - resource_type: file_daemon
+    resource_definition:
+      name: 'bacula-fd'
+      fd_port: 9102
+      working_Directory: /var/lib/bacula
+      pid_directory: /run/bacula
+      maximum_concurrent_jobs: = 20
+      plugin_directory: /usr/lib/bacula
+      fd_address: 127.0.0.1
+  - resource_type: messages
+    resource_definition:
+      name: Standard
+      director: 'bacula-dir = all, !skipped, !restored'

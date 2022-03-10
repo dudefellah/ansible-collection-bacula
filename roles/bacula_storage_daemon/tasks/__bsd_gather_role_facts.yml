@@ -1,0 +1,49 @@
+---
+- name: Set the packages value
+  set_fact:
+    _bacula_storage_daemon_packages: >-
+      {%- if (bacula_storage_daemon_packages is not none) and (bacula_storage_daemon_packages) -%}
+      {{ bacula_storage_daemon_packages }}
+      {%- elif (
+        (ansible_distribution in __bacula_storage_daemon_packages)
+        and (ansible_distribution_major_version|int in __bacula_storage_daemon_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_storage_daemon_packages[ansible_distribution][ansible_distribution_major_version|int] }}
+      {%- elif (
+        (ansible_distribution in __bacula_storage_daemon_packages)
+        and ('default' in __bacula_storage_daemon_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_storage_daemon_packages[ansible_distribution]['default'] }}
+      {%- endif -%}
+  tags:
+    - bacula
+    - bacula_storage_daemon
+
+# This is a hacky trick so that our values don't go missing when we call
+# the bacula_daemon role with all of the bacula_director_* role vars
+- name: Place storage daemon vars into host_vars
+  set_fact:
+    bacula_daemon_service_name: "{{ bacula_storage_daemon_service_name }}"
+    bacula_daemon_service_state: "{{ bacula_storage_daemon_service_state }}"
+    bacula_daemon_service_enabled: "{{ bacula_storage_daemon_service_enabled }}"
+    bacula_daemon_service_restarted: "{{ bacula_storage_daemon_service_restarted }}"
+    bacula_daemon_packages: "{{ _bacula_storage_daemon_packages }}"
+    bacula_daemon_owner: "{{ bacula_storage_daemon_owner }}"
+    bacula_daemon_group: "{{ bacula_storage_daemon_group }}"
+    bacula_daemon_template_validate: "{{ bacula_storage_daemon_template_validate }}"
+    bacula_daemon_default_dir_mode: "{{ bacula_storage_daemon_default_dir_mode }}"
+    bacula_daemon_default_file_mode: "{{ bacula_storage_daemon_default_file_mode }}"
+    bacula_daemon_service_name: "{{ bacula_storage_daemon_service_name }}"
+    bacula_daemon_service_state: "{{ bacula_storage_daemon_service_state }}"
+    bacula_daemon_service_enabled: "{{ bacula_storage_daemon_service_enabled }}"
+    bacula_daemon_service_restarted: "{{ bacula_storage_daemon_service_restarted }}"
+    bacula_daemon_no_log: "{{ bacula_storage_daemon_no_log }}"
+    bacula_daemon_base_config_file: "{{ bacula_storage_daemon_base_config_file }}"
+    bacula_daemon_base_config_mode: "{{ bacula_storage_daemon_base_config_mode }}"
+    bacula_daemon_base_config_owner: "{{ bacula_storage_daemon_base_config_owner }}"
+    bacula_daemon_base_config_group: "{{ bacula_storage_daemon_base_config_group }}"
+    bacula_daemon_config_root: "{{ bacula_storage_daemon_config_root }}"
+    bacula_daemon_resources: "{{ bacula_storage_daemon_resources }}"
+  tags:
+    - bacula
+    - bacula_storage_daemon

@@ -1,0 +1,54 @@
+---
+# defaults file for bacula_file_daemon
+# All of these values are direct maps from
+# bacula_file_daemon_* -> bacula_daemon_* in the `dudefellah.bacula.bacula_daemon` role.
+bacula_file_daemon_packages: null
+
+bacula_file_daemon_owner: bacula
+bacula_file_daemon_group: bacula
+
+bacula_file_daemon_service_name: bacula-fd
+bacula_file_daemon_service_state: started
+bacula_file_daemon_service_enabled: true
+bacula_file_daemon_service_restarted: restarted
+
+bacula_file_daemon_default_dir_mode: "0750"
+bacula_file_daemon_default_file_mode: "0640"
+bacula_file_daemon_default_template_validate: "bacula-fd -t %s"
+
+bacula_file_daemon_no_log: true
+
+bacula_file_daemon_base_config_file: bacula-fd.conf
+bacula_file_daemon_base_config_mode: "0640"
+bacula_file_daemon_base_config_owner: bacula
+bacula_file_daemon_base_config_group: bacula
+
+bacula_file_daemon_config_root:
+  path: /etc/bacula/
+  owner: bacula
+  group: disk
+  mode: "0640"
+
+bacula_file_daemon_resources:
+  - resource_type: Director
+    resource_definition:
+      name: bacula-dir
+      password: "tUifkwYWrJfXP8Njm07F_OQNhMu5o-2aw"
+  - resource_type: Director
+    resource_definition:
+      name: bacula-mon
+      password: "cSZhPrekd-akKZMvnwULc6gH_tL-rhxzW"
+      monitor: yes
+  - resource_type: file_daemon
+    resource_definition:
+      name: bacula-fd
+      fd_port: 9102                  # where we listen for the director
+      working_directory: /var/lib/bacula
+      pid_directory: /run/bacula
+      maximum_concurrent_jobs: 20
+      plugin_directory: /usr/lib/bacula
+      fd_address: 127.0.0.1
+  - resource_type: Messages
+    resource_definition:
+      name: Standard
+      director: bacula-dir = all, !skipped, !restored

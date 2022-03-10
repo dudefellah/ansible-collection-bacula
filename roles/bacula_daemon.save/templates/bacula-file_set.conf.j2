@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+
+{{ bacula_daemon_resource_type | split('_') | map('title') | join('') }} {
+{% for (k, v) in bacula_daemon_resource_definition.items() %}
+{% if (k|lower) not in ['include', 'exclude', 'options'] %}
+    {{ k  | split('_') | join(' ') | title }} = {{ v | quote }}
+{% elif (k|lower) == 'options' %}
+    {{ k | title }} {
+{% for (opt_k, opt_v) in (v | default({})).items() %}
+        {{ opt_k | split('_') | join(' ') | title }} = {{ opt_v | quote }}
+{% endfor %}
+    }
+{% elif (k|lower) in ['include', 'exclude'] %}
+    {{ k | title }} {
+{% if 'options' in v %}
+        Options {
+{% for (opt_k, opt_v) in (v['options'] | default({})).items() %}
+            {{ opt_k | split('_') | join(' ') | title }} = {{ opt_v | quote }}
+{% endfor %}
+        }
+{% endif %}
+{% for (inc_k, inc_v) in (v|default({})).items() %}
+{% if inc_k in ['file_list', 'wild_dir_list', 'wild_file_list', 'regex_dir_list', 'regex_file_list', 'regex_list'] %}
+{% for file_v in inc_v %}
+        {{ inc_k | regex_replace('_list$', '') | regex_replace('_', ' ') | title | regex_replace(' ', '') }} = {{ file_v | quote }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    }
+{% endif %}
+
+{% endfor %}
+}

@@ -1,0 +1,15 @@
+---
+# handlers file for ansible-role-bacula
+- name: Restart the Bacula daemon
+  ansible.builtin.service:
+    name: "{{ bacula_daemon_service_name }}"
+    state: "{{ bacula_daemon_service_restarted }}"
+  listen:
+    - "restart bacula daemon"
+  tags:
+    - bacula_daemon_handler
+    - handler
+    - bacula_daemon_restart
+    - restart
+  when:
+    - "bacula_daemon_service_restarted is not none"

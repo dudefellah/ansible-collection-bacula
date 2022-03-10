@@ -1,0 +1,326 @@
+---
+- hosts: bacula_directors
+  tasks:
+    - block:
+        - name: Configure the Bacula Directors
+          include_role:
+            name: dudefellah.bacula.bacula_daemon
+          vars:
+            bacula_daemon_packages:
+              - bacula-dir
+            bacula_daemon_default_template_validate: "bacula-dir -t %s"
+            # Give an absolute path to stick the main config under /etc/baculs,
+            # then put everything else under the /etc/bacula/director
+            # subdirectory.
+            bacula_daemon_base_config_file: /etc/bacula/bacula-dir.conf
+            bacula_daemon_config_root:
+              path: /etc/bacula/director
+              owner: bacula
+              group: bacula
+              mode: "0640"
+            bacula_daemon_resources:
+              - resource_type: Director
+                resource_definition:
+                  name: director-dir
+                  dir_port: 9101
+                  query_file: "/etc/bacula/scripts/query.sql"
+                  working_directory: "/var/lib/bacula"
+                  pid_directory: "/run/bacula"
+                  maximum Concurrent Jobs: 20
+                  password: "Um1DrMegfhq93cJ5pg9NTnFf8LItNVwTX"
+                  messages: Daemon
+                  dir_address: 127.0.0.1
+              - resource_type: JobDefs
+                resource_definition:
+                  name: "DefaultJob"
+                  type: Backup
+                  level: Incremental
+                  client: director-fd
+                  file_set: "Full Set"
+                  schedule: "WeeklyCycle"
+                  storage: File1
+                  messages: Standard
+                  pool: File
+                  spool_attributes: yes
+                  priority: 10
+                  write_bootstrap: "/var/lib/bacula/%c.bsr"
+              - resource_type: Job
+                resource_definition:
+                  name: "BackupClient1"
+                  job_defs: "DefaultJob"
+              - resource_type: Job
+                resource_definition:
+                  name: "BackupCatalog"
+                  job_defs: "DefaultJob"
+                  level: Full
+                  file_set: "Catalog"
+                  schedule: "WeeklyCycleAfterBackup"
+                  run_before_job: "/etc/bacula/scripts/make_catalog_backup.pl MyCatalog"
+                  run_after_job : "/etc/bacula/scripts/delete_catalog_backup"
+                  write_bootstrap: "/var/lib/bacula/%n.bsr"
+                  priority: 11
+              - resource_type: Job
+                resource_definition:
+                  name: "RestoreFiles"
+                  type: Restore
+                  client: director-fd
+                  storage: File1
+                  file_set: "Full Set"
+                  pool: File
+                  messages: Standard
+                  where: /nonexistant/path/to/file/archive/dir/bacula-restores
+              - resource_type: FileSet
+                resource_definition:
+                  name: "Full Set"
+                  include:
+                    options:
+                      signature: MD5
+                    file: /usr/sbin
+                  exclude:
+                    file:
+                      - /var/lib/bacula
+                      - /nonexistant/path/to/file/archive/dir
+                      - /proc
+                      - /tmp
+                      - /sys
+                      - /.journal
+                      - /.fsck
+              - resource_type: Schedule
+                resource_definition:
+                  name: "WeeklyCycle"
+                  run:
+                    - Full 1st sun at 23:05
+                    - Differential 2nd-5th sun at 23:05
+                    - Incremental mon-sat at 23:05
+              - resource_type: Schedule
+                resource_definition:
+                  name: "WeeklyCycleAfterBackup"
+                  run:
+                    - Full sun-sat at 23:10
+              - resource_type: FileSet
+                resource_definition:
+                  name: "Catalog"
+                  include:
+                    options:
+                      signature: MD5
+                    file: "/var/lib/bacula/XXX_DBNAME_XXX.sql"
+              - resource_type: Client
+                resource_definition:
+                  name: director-fd
+                  address: localhost
+                  fd_port: 9102
+                  catalog: MyCatalog
+                  password: "tUifkwYWrJfXP8Njm07F_OQNhMu5o-2aw"
+                  file_retention: 60 days
+                  job_retention: 6 months
+                  auto_prune: yes
+              - resource_type: Autochanger
+                resource_definition:
+                  name: File1
+                  address: localhost
+                  sd_port: 9103
+                  password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+                  device: FileChgr1
+                  media_type: File1
+                  maximum_concurrent_jobs: 10
+                  autochanger: File1
+              - resource_type: Autochanger
+                resource_definition:
+                  name: File2
+                  address: localhost
+                  sd_port: 9103
+                  password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+                  device: FileChgr2
+                  media_type: File2
+                  autochanger: File2
+                  maximum_concurrent_jobs: 10
+              - resource_type: Catalog
+                resource_definition:
+                  Name: MyCatalog
+                  dbname: "XXX_DBNAME_XXX"
+                  dbuser: "XXX_DBUSER_XXX"
+                  dbpassword: "XXX_DBPASSWORD_XXX"
+              - resource_type: Messages
+                resource_definition:
+                  Name: Standard
+                  mailcommand: "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula: %t %e of %c %l\" %r"
+                  operatorcommand: "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula: Intervention needed for %j\" %r"
+                  mail: root: all, !skipped
+                  operator: root: mount
+                  console: all, !skipped, !saved
+                  append: "/var/log/bacula/bacula.log": all, !skipped
+                  catalog: all
+              - resource_type: Messages
+                resource_definition:
+                  Name: Daemon
+                  mailcommand: "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula daemon message\" %r"
+                  mail: root: all, !skipped
+                  console: all, !skipped, !saved
+                  append: '"/var/log/bacula/bacula.log": all, !skipped'
+              - resource_type: Pool
+                resource_definition:
+                  name: Default
+                  pool_type: Backup
+                  recycle: yes
+                  auto_prune: yes
+                  volume_retention: 365 days
+                  maximum_volume_bytes: 50G
+                  maximum_volumes: 100
+              - resource_type: Pool
+                resource_definition:
+                  Name: File
+                  pool_type: Backup
+                  recycle: yes
+                  auto_prune: yes
+                  volume_retention: 365 days
+                  maximum_volume_bytes: 50G
+                  maximum_volumes: 100
+                  label_format: "Vol-"
+              - resource_type: Pool
+                resource_definition:
+                  name: Scratch
+                  pool_type: Backup
+              - resource_type: Console
+                resource_definition:
+                  name: director-mon
+                  password: "yzzaZ5yqcHejZZAoWgP8MND0gutaNrn3G"
+                  command_acl: 'status, .status'
+      become: true
+
+- hosts: bacula_storage_daemons
+  tasks:
+    - block:
+        - name: Configure the Bacula Storage Daemon(S)
+          include_role:
+            name: dudefellah.bacula.bacula_daemon
+          vars:
+            bacula_daemon_packages:
+              - bacula-sd
+            bacula_daemon_default_template_validate: "bacula-sd -t %s"
+            bacula_daemon_base_config_file: /etc/bacula/bacula-sd.conf
+            bacula_daemon_config_root:
+              path: /etc/bacula/sd
+              owner: bacula
+              group: disk
+              mode: "0640"
+            bacula_daemon_resources:
+              - resource_type: Storage
+                resource_definition:
+                  name: bacula-sd
+                  sd_port: 9103
+                  working_directory: "/var/lib/bacula"
+                  pid_directory: "/run/bacula"
+                  plugin_directory: "/usr/lib/bacula"
+                  maximum_concurrent_jobs: 20
+                  sd_address: 127.0.0.1
+              - resource_type: Director
+                resource_definition:
+                  name: bacula-dir
+                  password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+              - resource_type: Director
+                resource_definition:
+                  name: bacula-mon
+                  password: "vWWdDzxprn-kkw-lErlpZks1REWJvfDCo"
+                  monitor: yes
+              - resource_type: Autochanger
+                resource_definition:
+                  name: FileChgr1
+                  device: FileChgr1-Dev1, FileChgr1-Dev2
+                  changer_command: ""
+                  changer_device: /dev/null
+              - resource_type: Device
+                resource_definition:
+                  name: FileChgr1-Dev1
+                  media_type: File1
+                  archive_device: /nonexistant/path/to/file/archive/dir
+                  label_media: yes
+                  random_access: yes
+                  automatic_mount: yes
+                  removable_media: no
+                  always_open: no;
+                  maximum_concurrent_jobs: 5
+              - resource_type: Device
+                resource_definition:
+                  name: FileChgr1-Dev2
+                  media_type: File1
+                  archive_device: /nonexistant/path/to/file/archive/dir
+                  label_media: yes
+                  random_access: Yes
+                  automatic_mount: yes
+                  removable_media: no
+                  always_open: no
+                  maximum_concurrent_jobs: 5
+              - resource_type: Autochanger
+                resource_definition:
+                  name: FileChgr2
+                  device: FileChgr2-Dev1, FileChgr2-Dev2
+                  changer_command: ""
+                  changer_device: /dev/null
+              - resource_type: Device
+                resource_definition:
+                  name: FileChgr2-Dev1
+                  media_type: File2
+                  archive_device: /nonexistant/path/to/file/archive/dir
+                  label_media: yes
+                  random_access: Yes
+                  automatic_mount: yes
+                  removable_media: no
+                  always_open: no;
+                  maximum_concurrent_jobs: 5
+              - resource_type: Device
+                resource_definition:
+                  name: FileChgr2-Dev2
+                  media_type: File2
+                  archive_device: /nonexistant/path/to/file/archive/dir
+                  label_media: yes
+                  random_access: Yes
+                  automatic_mount: yes
+                  removable_media: no
+                  always_open: no;
+                  maximum_concurrent_jobs: 5
+              - resource_type: Messages
+                resource_definition:
+                  name: standard
+                  director: bacula-dir: all
+      become: true
+
+- hosts: bacula_file_daemons
+  tasks:
+    - block:
+        - name: Configure the Bacula Storage Daemon(S)
+          include_role:
+            name: dudefellah.bacula.bacula_daemon
+          vars:
+            bacula_daemon_packages:
+              - bacula-fd
+            bacula_daemon_default_template_validate: "bacula-fd -t %s"
+            bacula_daemon_base_config_file: /etc/bacula/bacula-fd.conf
+            bacula_daemon_config_root:
+              path: /etc/bacula/fd
+              owner: bacula
+              group: bacula
+              mode: "0640"
+            bacula_daemon_resources:
+              - resource_type: Director
+                resource_definition:
+                  name: bacula-dir
+                  password: "tUifkwYWrJfXP8Njm07F_OQNhMu5o-2aw"
+              - resource_type: Director
+                resource_definition:
+                  name: bacula-mon
+                  password: "cSZhPrekd-akKZMvnwULc6gH_tL-rhxzW"
+                  monitor: yes
+              - resource_type: file_daemon
+                resource_definition:
+                  name: bacula-fd
+                  fd_port: 9102                  # where we listen for the director
+                  working_directory: /var/lib/bacula
+                  pid_directory: /run/bacula
+                  maximum_concurrent_jobs: 20
+                  plugin_directory: /usr/lib/bacula
+                  fd_address: 127.0.0.1
+              - resource_type: Messages
+                resource_definition:
+                  name: Standard
+                  director: bacula-dir = all, !skipped, !restored
+      become: true

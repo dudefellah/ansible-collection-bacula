@@ -1,0 +1,82 @@
+---
+- name: Set the packages value
+  set_fact:
+    _bacula_daemon_packages: >-
+      {%- if (bacula_daemon_packages is not none) and (bacula_daemon_packages) -%}
+      {{ bacula_daemon_packages }}
+      {%- elif (
+        (ansible_distribution in __bacula_daemon_packages)
+        and (ansible_distribution_major_version|int in __bacula_daemon_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_daemon_packages[ansible_distribution][ansible_distribution_major_version|int] }}
+      {%- elif (
+        (ansible_distribution in __bacula_daemon_packages)
+        and ('default' in __bacula_daemon_packages[ansible_distribution])
+      ) -%}
+      {{ __bacula_daemon_packages[ansible_distribution]['default'] }}
+      {%- endif -%}
+  tags:
+    - bacula
+
+- name: Get a list of our templates
+  set_fact:
+    _bacula_daemon_local_templates: >-
+      {{ lookup('fileglob', role_path + '/templates/*.conf.j2', wantlist=True) | map('basename') }}
+  tags:
+    - bacula
+
+- name: Set a cleaned up root config path
+  set_fact:
+    _bacula_daemon_config_root_path: "{{ bacula_daemon_config_root.path.rstrip('/') }}"
+  tags:
+    - bacula
+
+# This changes the order of the resources, but it shouldn't really matter very
+# much.
+# Since I'm trying to allow path to be absolute or relative or not exist,
+# managing the list is a a little more complicated than it probably needs to
+# be, but I do like having the flexibility, so here we are.
+- name: Get a list of destination file paths
+  set_fact:
+    _bacula_daemon_config_file_paths: >-
+      {{
+          (
+            bacula_daemon_resources
+            | rejectattr('include', 'false')
+            | selectattr('path', 'defined')
+            | rejectattr('path', 'none')
+            | selectattr('path', 'match', '^/')
+            | map(attribute='path')
+            | map('lower')
+            | list
+          ) + (
+            bacula_daemon_resources
+            | rejectattr('include', 'false')
+            | selectattr('path', 'defined')
+            | rejectattr('path', 'none')
+            | rejectattr('path', 'match', '^/')
+            | map(attribute='path')
+            | map('regex_replace', '(.+)', _bacula_daemon_config_root_path + '/\1')
+            | map('lower')
+            | list
+          ) + (
+            (
+              bacula_daemon_resources
+              | rejectattr('include', 'false')
+              | selectattr('path', 'undefined')
+              | map(attribute='resource_type')
+            ) | zip(
+              (
+                bacula_daemon_resources
+                | rejectattr('include', 'false')
+                | selectattr('path', 'undefined')
+                | map(attribute='resource_definition.name', default=none)
+              )
+            ) | map('join', '/')
+            | map('regex_replace', '(.+)', _bacula_daemon_config_root_path + '/\1.conf')
+            | map('lower')
+            | list
+          )
+      }}
+  tags:
+    - bacula

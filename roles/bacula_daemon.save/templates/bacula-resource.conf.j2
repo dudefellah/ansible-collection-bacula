@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+{{ bacula_daemon_resource_type | split('_') | map('title') | join('') }} {
+    {{ (
+     bacula_daemon_resource_definition | dict2items | map(attribute='key') | map('split', '_') | map('join', ' ') | map('title') | list
+   ) | zip(
+     bacula_daemon_resource_definition | dict2items | map(attribute='value') | map('quote') | list
+   ) | map('join', ' = ') | join('\n') | indent('    ')
+}}
+}

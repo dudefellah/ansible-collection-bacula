@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+{% for __bd_resource in bacula_daemon_resources %}
+@{% if 'path' in __bd_resource -%}
+    {{ __bd_resource.path.startswith('/') | ternary(
+        __bd_resource.path,
+        bacula_daemon_config_root.path.rstrip('/') + '/' + __bd_resource.path
+       ) }}
+{% else -%}
+{{ bacula_daemon_config_root.path.rstrip('/') + '/' + __bd_resource.resource_type + '/' + (__bd_resource.resource_definition.name | default(loop.index | string)) + '.conf' }}
+{% endif %}
+{% endfor %}

@@ -1,0 +1,111 @@
+---
+# defaults file for bacula_storage_daemon
+# All of these values are direct maps from
+# bacula_storage_daemon_* -> bacula_daemon_* in the `dudefellah.bacula.bacula_daemon` role.
+bacula_storage_daemon_packages: null
+
+bacula_storage_daemon_owner: bacula
+bacula_storage_daemon_group: disk
+
+bacula_storage_daemon_template_validate: "bacula-sd -t %s"
+
+bacula_storage_daemon_default_dir_mode: "0750"
+bacula_storage_daemon_default_file_mode: "0640"
+
+bacula_storage_daemon_no_log: true
+
+bacula_storage_daemon_service_name: bacula-sd
+bacula_storage_daemon_service_state: started
+bacula_storage_daemon_service_enabled: true
+bacula_storage_daemon_service_restarted: restarted
+
+bacula_storage_daemon_base_config_file: bacula-sd.conf
+bacula_storage_daemon_base_config_mode: "0640"
+bacula_storage_daemon_base_config_owner: bacula
+bacula_storage_daemon_base_config_group: disk
+
+bacula_storage_daemon_config_root:
+  path: /etc/bacula/
+  owner: bacula
+  group: disk
+  mode: "0640"
+
+bacula_storage_daemon_resources:
+  - resource_type: Storage
+    resource_definition:
+      name: bacula-sd
+      sd_port: 9103
+      working_directory: "/var/lib/bacula"
+      pid_directory: "/run/bacula"
+      plugin_directory: "/usr/lib/bacula"
+      maximum_concurrent_jobs: 20
+      sd_address: 127.0.0.1
+  - resource_type: Director
+    resource_definition:
+      name: bacula-dir
+      password: "uNhfQ_mKJq4pbrh6OLRPKbFIkn8mwfmjA"
+  - resource_type: Director
+    resource_definition:
+      name: bacula-mon
+      password: "vWWdDzxprn-kkw-lErlpZks1REWJvfDCo"
+      monitor: yes
+  - resource_type: Autochanger
+    resource_definition:
+      name: FileChgr1
+      device: FileChgr1-Dev1, FileChgr1-Dev2
+      changer_command: ""
+      changer_device: /dev/null
+  - resource_type: Device
+    resource_definition:
+      name: FileChgr1-Dev1
+      media_type: File1
+      archive_device: /nonexistant/path/to/file/archive/dir
+      label_media: yes
+      random_access: yes
+      automatic_mount: yes
+      removable_media: no
+      always_open: no
+      maximum_concurrent_jobs: 5
+  - resource_type: Device
+    resource_definition:
+      name: FileChgr1-Dev2
+      media_type: File1
+      archive_device: /nonexistant/path/to/file/archive/dir
+      label_media: yes
+      random_access: Yes
+      automatic_mount: yes
+      removable_media: no
+      always_open: no
+      maximum_concurrent_jobs: 5
+  - resource_type: Autochanger
+    resource_definition:
+      name: FileChgr2
+      device: FileChgr2-Dev1, FileChgr2-Dev2
+      changer_command: ""
+      changer_device: /dev/null
+  - resource_type: Device
+    resource_definition:
+      name: FileChgr2-Dev1
+      media_type: File2
+      archive_device: /nonexistant/path/to/file/archive/dir
+      label_media: yes
+      random_access: Yes
+      automatic_mount: yes
+      removable_media: no
+      always_open: no
+      maximum_concurrent_jobs: 5
+  - resource_type: Device
+    resource_definition:
+      name: FileChgr2-Dev2
+      media_type: File2
+      archive_device: /nonexistant/path/to/file/archive/dir
+      label_media: yes
+      random_access: Yes
+      automatic_mount: yes
+      removable_media: no
+      always_open: no
+      maximum_concurrent_jobs: 5
+  - resource_type: Messages
+    resource_definition:
+      name: standard
+      director: "bacula-dir = all"

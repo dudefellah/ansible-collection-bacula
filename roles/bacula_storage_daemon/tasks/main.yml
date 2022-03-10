@@ -1,0 +1,14 @@
+---
+# tasks file for bacula_storage_daemon
+- name: Gather some facts for the storage daemon role
+  include_tasks: __bsd_gather_role_facts.yml
+  tags:
+    - bacula
+    - bacula_storage_daemon
+
+- name: Do nothing but include the dudefellah.bacula.bacula_daemon role
+  ansible.builtin.include_role:
+    name: dudefellah.bacula.bacula_daemon
+  tags:
+    - bacula
+    - bacula_storage_daemon

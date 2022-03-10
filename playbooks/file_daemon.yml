@@ -1,0 +1,23 @@
+---
+- hosts: bacula_file_daemons
+  tasks:
+    - block:
+        - name: Configure the Bacula File Daemons
+          include_role:
+            name: dudefellah.bacula.bacula_daemon
+          vars:
+            bacula_daemon_packages: "{{ bacula_daemon_file_packages }}"
+            bacula_daemon_owner: "{{ bacula_daemon_file_owner | default('bacula') }}"
+            bacula_daemon_group: "{{ bacula_daemon_file_group | default('bacula') }}"
+            bacula_daemon_default_dir_mode: "{{ bacula_daemon_file_default_dir_node | default('0750') }}"
+            bacula_daemon_default_file_mode: "{{ bacula_daemon_file_default_file_mode | default('0640') }}"
+            bacula_daemon_default_template_validate: "{{ bacula_daemon_file_default_template_validate | default('bacula-dir -t %s') }}"
+            bacula_daemon_no_log: "{{ bacula_daemon_file_no_log | default(true) }}"
+            bacula_daemon_init_scripts: "{{ bacula_daemon_file_init_scripts | default([]) }}"
+            bacula_daemon_base_config_file: "{{ bacula_daemon_file_base_config_file | default('bacula-dir.conf') }}"
+            bacula_daemon_base_config_mode: "{{ bacula_daemon_file_base_config_mode | default('0640') }}"
+            bacula_daemon_base_config_owner: "{{ bacula_daemon_file_base_config_owner | default('bacula') }}"
+            bacula_daemon_base_config_group: "{{ bacula_daemon_file_base_config_group | default('bacula') }}"
+            bacula_daemon_config_root: "{{ bacula_daemon_file_base_Config_root | default({'path': '/etc/bacula', 'owner': 'bacula', 'group': 'bacula', 'mode': '0640'}) }}"
+            bacula_daemon_resources: "{{ bacula_daemon_file_resources | default([]) }}"
+      become: true

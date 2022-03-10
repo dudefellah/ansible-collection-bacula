@@ -1,0 +1,23 @@
+---
+namespace: dudefellah
+name: bacula
+version: 0.0.1
+readme: README.md
+authors:
+  - Dan <dan@fatmoustache.ca>
+description: Collection for deploying and configuring Bacula setups.
+license:
+  - GPL-2.0-or-later
+tags:
+  - bacula
+  - backup
+dependencies:
+  community.postgresql: '>=1.6.0'
+  # We're not actually supporting mysql yet, so leave this commented out
+  # community.mysql: '>=2.3.2'
+repository: https://github.com/dudefellah/ansible-collection-bacula
+# The URL to any online docs
+# documentation: http://docs.example.com
+homepage: https://github.com/dudefellah/ansible-collection-bacula
+issues: https://github.com/dudefellah/ansible-collection-bacula
+build_ignore: []

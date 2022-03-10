@@ -1,0 +1,9 @@
+---
+# vars file for bacula_storage_daemon
+__bacula_storage_daemon_packages:
+  CentOS:
+    default:
+      - bacula-sd
+  Debian:
+    default:
+      - bacula-sd

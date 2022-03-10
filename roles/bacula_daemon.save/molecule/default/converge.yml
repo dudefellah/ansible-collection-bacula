@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include ansible-role-bacula"
+      include_role:
+        name: "dudefellah.bacula.bacula"
