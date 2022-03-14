@@ -1,0 +1,11 @@
+---
+stages:
+#  - test    - No testing stage just yet
+  - publish
+
+include:
+  - remote: "https://gitlab.com/dudefellah/ci-templates/-/raw/master/ansible/Galaxy.gitlab-ci.yml"
+
+publish:
+  stage: publish
+  extends: .ansible_galaxy_publish
